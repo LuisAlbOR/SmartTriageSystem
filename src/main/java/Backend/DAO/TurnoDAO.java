@@ -1,5 +1,6 @@
 package Backend.DAO;
 
+import Backend.DTO.TurnoPublicoDTO;
 import Backend.MODEL.Turno;
 
 import java.sql.*;
@@ -14,8 +15,7 @@ public class TurnoDAO {
         turno.setId(rs.getInt("id"));
         turno.setPacienteId(rs.getInt("paciente_id"));
         turno.setRecepcionistaId(rs.getInt("recepcionista_id"));
-        
-        // Manejar campos NULL (medico_id, ts_inicio, ts_fin)
+
         turno.setMedicoId(rs.getObject("medico_id") != null ? rs.getInt("medico_id") : null);
         turno.setPrioridad(rs.getInt("prioridad"));
         turno.setEstado(rs.getString("estado"));
@@ -33,7 +33,6 @@ public class TurnoDAO {
      */
     public int save(Turno turno) throws SQLException {
         int turnoId = -1;
-        // Se añade RETURNING id a la consulta para obtener el ID autogenerado.
         String SQL = "INSERT INTO turno (paciente_id, recepcionista_id, prioridad, estado) VALUES (?, ?, ?, ?) RETURNING id";
 
         try (Connection conn = DatabaseUtil.getConnection();
@@ -68,9 +67,8 @@ public class TurnoDAO {
      */
     public int getNextTurnIdForUpdate(Connection conn) throws SQLException {
         int turnoId = -1;
-        // La prioridad 1 es la más alta. Ordenamos por prioridad (ASC) y luego por antigüedad (ASC).
         String SQL = "SELECT id FROM turno WHERE estado = 'EN_COLA' " +
-                     "ORDER BY prioridad ASC, ts_creado ASC LIMIT 1 FOR UPDATE";
+                "ORDER BY prioridad ASC, ts_creado ASC LIMIT 1 FOR UPDATE";
 
         try (PreparedStatement stmt = conn.prepareStatement(SQL);
              ResultSet rs = stmt.executeQuery()) {
@@ -92,7 +90,7 @@ public class TurnoDAO {
      */
     public boolean assignTurnToMedico(Connection conn, int turnoId, int medicoId) throws SQLException {
         String SQL = "UPDATE turno SET estado = 'ATENDIENDO', medico_id = ?, ts_inicio = CURRENT_TIMESTAMP WHERE id = ?";
-        
+
         try (PreparedStatement stmt = conn.prepareStatement(SQL)) {
             stmt.setInt(1, medicoId);
             stmt.setInt(2, turnoId);
@@ -109,7 +107,7 @@ public class TurnoDAO {
 
         try (Connection conn = DatabaseUtil.getConnection();
              PreparedStatement stmt = conn.prepareStatement(SQL)) {
-            
+
             stmt.setInt(1, id);
 
             try (ResultSet rs = stmt.executeQuery()) {
@@ -126,21 +124,31 @@ public class TurnoDAO {
      * Esta consulta es vital para la pantalla pública.
      * @return Lista de objetos Turno, ordenados por la prioridad de atención.
      */
-    public List<Turno> getQueueStatus() throws SQLException {
-        List<Turno> cola = new ArrayList<>();
-        // Ordenamos: 1) Mayor prioridad (ASC), 2) Mayor antigüedad (ASC)
-        String SQL = "SELECT * FROM turno WHERE estado IN ('EN_COLA', 'ATENDIENDO') " +
-                     "ORDER BY estado DESC, prioridad ASC, ts_creado ASC";
+    public List<TurnoPublicoDTO> getQueueStatus() throws SQLException {
+        List<TurnoPublicoDTO> colaPublica = new ArrayList<>();
+
+        // SQL actualizado con JOIN para obtener el nombre del paciente
+        String SQL = "SELECT t.id, p.nombre, t.estado, t.prioridad " +
+                "FROM turno t JOIN paciente p ON t.paciente_id = p.id " +
+                "WHERE t.estado IN ('EN_COLA', 'ATENDIENDO') " +
+                "ORDER BY t.estado DESC, t.prioridad ASC, t.ts_creado ASC";
 
         try (Connection conn = DatabaseUtil.getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(SQL)) {
 
             while (rs.next()) {
-                cola.add(extractTurnoFromResultSet(rs));
+                // Mapear el resultado al DTO público
+                TurnoPublicoDTO dto = new TurnoPublicoDTO();
+                dto.setId(rs.getInt("id"));
+                dto.setNombre(rs.getString("nombre"));
+                dto.setEstado(rs.getString("estado"));
+                dto.setPrioridad(rs.getInt("prioridad"));
+
+                colaPublica.add(dto);
             }
         }
-        return cola;
+        return colaPublica;
     }
     
     /**

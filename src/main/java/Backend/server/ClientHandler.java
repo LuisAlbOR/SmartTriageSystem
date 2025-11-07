@@ -2,6 +2,7 @@ package Backend.server;
 
 import Backend.DAO.TurnoDAO;
 import Backend.DTO.AsignacionTurnoDTO;
+import Backend.DTO.TurnoPublicoDTO;
 import Backend.MODEL.Turno;
 import Backend.MODEL.Usuario;
 import Backend.Service.AuthService;
@@ -184,8 +185,13 @@ public class ClientHandler implements Runnable {
 
     private Response handleQueueStatus() throws SQLException {
         // Cualquiera autenticado (incluyendo 'pantalla') puede ver la cola
-        List<Turno> cola = turnoDAO.getQueueStatus();
-        return Response.ok("Estado de la cola actualizado.", cola);
+
+        // --- CÓDIGO ACTUALIZADO ---
+        // Se llama al método del DAO que ahora retorna la lista de DTOs públicos
+        List<TurnoPublicoDTO> colaPublica = turnoDAO.getQueueStatus();
+
+        // Se retorna la lista pública al cliente
+        return Response.ok("Estado de la cola actualizado.", colaPublica);
     }
 
     private Response handleFinishTurn(Request request) throws SQLException {
@@ -213,6 +219,7 @@ public class ClientHandler implements Runnable {
             }
         } catch (IOException e) {
             // Ignorar error al cerrar
+            System.out.println(e.getMessage());
         }
     }
 }

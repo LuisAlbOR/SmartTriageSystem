@@ -4,6 +4,7 @@ import Backend.protocol.Response;
 import Frontend.TriageApiClient;
 import Frontend.UI.view.LoginView;
 import Frontend.UI.view.MedicoView;
+import Frontend.UI.view.PantallaView;
 import Frontend.UI.view.RecepcionView;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -118,7 +119,14 @@ public class LoginController {
                         break;
                     case "pantalla":
                          // Redirigir a PantallaView...
-                         break;
+                        PantallaView pv = new PantallaView();
+                        // Pasar el cliente YA CONECTADO y autenticado
+                        new PantallaController(pv, apiClient, primaryStage);
+
+                        primaryStage.setScene(new Scene(pv.getView(), 1024, 768));
+                        primaryStage.setFullScreen(true); // Las pantallas públicas suelen ser a pantalla completa
+                        primaryStage.setTitle("Sala de Espera - Triage");
+                        break;
                     default:
                         view.showMessage("Rol desconocido: " + rol, true);
                         closeClientQuietly();
